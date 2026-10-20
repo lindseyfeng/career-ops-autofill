@@ -1,0 +1,11 @@
+# personal data: never commit
+facts.md
+resume.pdf
+open-questions.md
+queue.json
+state.json
+logs/
+screenshots/
+node_modules/
+.env
+.DS_Store
