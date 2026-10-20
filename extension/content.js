@@ -140,7 +140,7 @@
       el.focus(); el.click(); setNative(el, t.slice(0, 40)); await sleep(1200);
       const lb = el.getAttribute('aria-controls');
       let opts = [...document.querySelectorAll(lb ? `[id="${CSS.escape(lb)}"] [role=option]` : '[role=option]')].filter(visible);
-      if (!opts.length) opts = [...document.querySelectorAll('[role=listbox] li, [class*="option"], [class*="Option"], [class*="suggestion"], [class*="result"] li')].filter(x => visible(x) && !x.closest('#career-ops-panel') && txt(x));
+      if (!opts.length) opts = [...document.querySelectorAll('[role=listbox] li, [class*="option"], [class*="Option"], [class*="suggestion"], [class*="result"] li, .dropdown-results > *')].filter(x => visible(x) && !x.closest('#career-ops-panel') && txt(x));
       const want = String(v).toLowerCase(), first = t.toLowerCase();
       const o = opts.find(x => txt(x).toLowerCase() === want) || opts.find(x => txt(x).toLowerCase().startsWith(first)) || (isLocation ? opts.find(x => /georgia|\bga\b/i.test(txt(x))) || opts[0] : null);
       if (o) { o.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); o.click(); await sleep(300); return txt(o); }
@@ -203,7 +203,7 @@
     for (const f of fields) {
       const el = f.el || f.els?.[0]; if ([...used].some(b => b.contains(el))) continue;
       try {
-        if (EEO.test(f.question || '')) {
+        if (EEO.test(f.question || '') || /^eeo\[/.test(f.el?.name || '')) {
           if (f.kind === 'combobox') { f.el.click(); await sleep(500); const lb = f.el.getAttribute('aria-controls'); const o = [...document.querySelectorAll(lb ? `[id="${CSS.escape(lb)}"] [role=option]` : '[role=option]')].find(x => DECLINE(txt(x))); if (o) { o.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); o.click(); log.push(['✅', f.question, txt(o)]); } else document.body.click(); }
           else if (f.kind === 'radio') { const o = f.options.find(DECLINE); if (o) { clickOption(f, o); log.push(['✅', f.question, o]); } }
           else if (f.kind === 'select') { const o = [...f.el.options].find(o => DECLINE(o.text)); if (o) { setNative(f.el, o.value); log.push(['✅', f.question, o.text]); } }

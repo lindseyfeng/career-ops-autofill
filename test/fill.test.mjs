@@ -32,4 +32,25 @@ const good = /All required/.test(ok.panel) && JSON.stringify(ok.state) === JSON.
 const bad = await run('Option Z');
 const caught = /NOT filled[\s\S]*Which best describes you/.test(bad.panel);
 console.log(good ? 'PASS fill' : 'FAIL fill ' + JSON.stringify(ok)); console.log(caught ? 'PASS self-check' : 'FAIL self-check ' + bad.panel);
-process.exit(good && caught ? 0 : 1);
+process.exitCode = good && caught ? 0 : 1;
+
+// ---- Lever: real /apply markup (scripts stripped), questions read by prepare.mjs's own parser ----
+const { leverParse } = await import('../prepare.mjs');
+const lhtml = fs.readFileSync(path.join(HERE, 'fixture-lever.html'), 'utf8');
+const lf = leverParse(lhtml);
+const pick = f => f.kind === 'file' ? 'RESUME' : f.kind === 'multiselect' ? [f.options[0]] : f.kind === 'select' ? f.options[f.options.length > 2 ? 2 : 0] : f.kind === 'textarea' ? 'Some text.' : /location/i.test(f.question) ? 'Atlanta, GA, United States' : 'x';
+const lAnswers = lf.map(f => ({ question: f.question, kind: f.kind, required: f.required, value: pick(f) }));
+{
+  const b = await chromium.launch(); const p = await b.newPage();
+  await p.route(/^https?:/, r => r.abort());
+  await p.addInitScript(it => { window.chrome = { runtime: { sendMessage: (m, r) => setTimeout(() => r(m.type === 'item' ? it : m.type === 'resume' ? btoa('%PDF-1.4') : { ok: true }), 10) } }; }, { company: 'Lever', role: 'R', city: 'Atlanta, Georgia', answers: lAnswers });
+  await p.goto('file://' + path.join(HERE, 'fixture-lever.html'));
+  await p.addScriptTag({ content });
+  await p.waitForFunction(() => /All required|NOT filled|Autofill error/.test(document.getElementById('career-ops-panel')?.innerText || ''), null, { timeout: 90000 });
+  const panel = await p.evaluate(() => document.getElementById('career-ops-panel').innerText);
+  const loc = await p.evaluate(() => document.getElementById('location-input').value);
+  await b.close();
+  const lok = /All required/.test(panel) && loc === 'Atlanta, GA, United States';
+  console.log(lok ? `PASS lever (${lf.length} fields)` : 'FAIL lever\n' + panel + '\nloc=' + loc);
+  if (!lok) process.exitCode = 1;
+}

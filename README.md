@@ -2,7 +2,7 @@
 
 A companion to [career-ops](https://github.com/career-ops-hq/career-ops) that does the boring part of job applications in **your own Chrome**:
 
-1. **Every morning (no browser):** scan job boards → filter (location, title, blacklist, already applied) → read each form's questions from the public Greenhouse / Ashby APIs → draft answers with `claude -p` from `facts.md` + `cv.md` only → enforce hard invariants → queue.
+1. **Every morning (no browser):** scan job boards → filter (location, title, blacklist, already applied) → read each form's questions from the public Greenhouse / Ashby APIs (Lever: its server-rendered /apply page) → draft answers with `claude -p` from `facts.md` + `cv.md` only → enforce hard invariants → queue.
 2. **Chrome extension:** when you open a queued application, it fills every field, attaches your resume, verifies each answer actually stuck, and shows a green/red panel. **It never clicks Submit.** You review and submit.
 3. **Daily email:** what was queued, what needs you (with resume attached), and questions the system couldn't answer.
 
@@ -14,7 +14,7 @@ No headless browsers, no automated submission, no CAPTCHA handling. Automated br
 flowchart TD
     A["1. Scan<br/>career-ops scan.mjs<br/>Greenhouse / Ashby / Lever boards"] --> B
     B["2. Filter<br/>location, title, posting age,<br/>blacklist, already applied"] --> C
-    C["3. Read the form<br/>public ATS API: every question,<br/>type, options, required?"] --> D
+    C["3. Read the form<br/>Greenhouse / Ashby API, Lever /apply HTML:<br/>every question, type, options, required?"] --> D
     D["4. Draft answers<br/>claude -p with facts.md + cv.md + JD"] --> E
     E["5. Guardrails<br/>hard invariants + self-check"] -->|all required answered| Q[("queue.json")]
     E -->|can't answer truthfully /<br/>unsupported ATS| M["Manual list<br/>+ open-questions.md"]
@@ -102,4 +102,4 @@ When you submit, the extension sees the confirmation page and marks the row `App
 | `morning.mjs`, `open-next.mjs`, `email.mjs` | daily orchestration and summary |
 | `facts.md`, `resume.pdf`, `open-questions.md`, `queue.json`, `state.json`, `logs/` | **personal, gitignored** |
 
-Supported ATSs: Greenhouse and Ashby. Anything else goes to the manual list.
+Supported ATSs: Greenhouse, Ashby and Lever. Anything else (Workday, Gem, Rippling, in-house portals) goes to the manual list with the link and your resume.

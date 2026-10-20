@@ -1,13 +1,26 @@
 {
   "manifest_version": 3,
   "name": "career-ops autofill (local)",
-  "version": "0.1.0",
-  "description": "Fills Greenhouse/Ashby application forms from your local career-ops queue. Never clicks Submit.",
-  "host_permissions": ["http://127.0.0.1:47821/*"],
-  "background": { "service_worker": "bg.js" },
-  "content_scripts": [{
-    "matches": ["https://jobs.ashbyhq.com/*", "https://job-boards.greenhouse.io/*", "https://boards.greenhouse.io/*"],
-    "js": ["content.js"],
-    "run_at": "document_idle"
-  }]
+  "version": "0.2.0",
+  "description": "Fills Greenhouse/Ashby/Lever application forms from your local career-ops queue. Never clicks Submit.",
+  "host_permissions": [
+    "http://127.0.0.1:47821/*"
+  ],
+  "background": {
+    "service_worker": "bg.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://jobs.ashbyhq.com/*",
+        "https://job-boards.greenhouse.io/*",
+        "https://boards.greenhouse.io/*",
+        "https://jobs.lever.co/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
 }

@@ -46,7 +46,46 @@ export function jobRef(url, company = '') {
     if (!board) return null;
     return { ats: 'greenhouse', board, id: m[1], applyUrl: `https://job-boards.greenhouse.io/${board}/jobs/${m[1]}` };
   }
+  m = url.match(/jobs\.lever\.co\/([^/]+)\/([0-9a-f-]{36})/);
+  if (m) return { ats: 'lever', board: m[1], id: m[2], applyUrl: `https://jobs.lever.co/${m[1]}/${m[2]}/apply` };
   return null;
+}
+
+// Lever has no questions API; the /apply page is server-rendered HTML with every field in it.
+const unent = t => String(t).replace(/&quot;/g, '"').replace(/&#x27;|&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&');
+const strip = t => unent(String(t).replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
+export function leverParse(html) {
+  const fields = [], seen = new Set();
+  const blocks = html.split(/<li class="application-question/).slice(1).map(b => b.slice(0, b.search(/<li class="application-question|<\/form>/) >>> 0));
+  for (const b of blocks) {
+    const lab = b.match(/<div class="application-label[^"]*">([\s\S]*?)<\/div>\s*(?:<\/div>\s*)?<div class="application-field/);
+    const raw = lab ? lab[1] : '';
+    const question = strip(raw).replace(/\s*✱\s*$/, '').trim();
+    if (!question || seen.has(question)) continue;
+    const ctl = b.match(/<(textarea|select)\b[^>]*>|<input\b[^>]*>/g) || [];
+    const vis = ctl.filter(c => !/type="hidden"/.test(c));
+    if (!vis.length) continue;
+    const first = vis[0], type = (first.match(/type="([^"]+)"/) || [])[1] || '';
+    if (/name="(eeo|consent|surveysResponses)\[/.test(first) || /h-captcha/.test(first)) continue;
+    const required = /✱|class="required"/.test(raw) || /\brequired\b/.test(first);
+    let kind = 'text', options = [];
+    if (/^<textarea/.test(first)) kind = 'textarea';
+    else if (type === 'file') kind = 'file';
+    else if (/^<select/.test(first)) { kind = 'select'; const sel = b.slice(b.indexOf(first)); options = [...sel.slice(0, sel.indexOf('</select>')).matchAll(/<option[^>]*>([^<]*)<\/option>/g)].map(o => unent(o[1]).trim()).filter(o => o && !/^select\b/i.test(o)); }
+    else if (type === 'radio' || type === 'checkbox') { kind = type === 'radio' ? 'select' : 'multiselect'; options = [...b.matchAll(/<input[^>]*type="(?:radio|checkbox)"[^>]*value="([^"]*)"/g)].map(o => unent(o[1])); }
+    seen.add(question);
+    fields.push({ question, kind, required, options });
+  }
+  return fields;
+}
+async function leverForm(ref) {
+  const r = await fetch(`https://jobs.lever.co/${ref.board}/${ref.id}/apply`);
+  if (r.status === 404) throw new Error('posting closed (Lever 404)');
+  if (!r.ok) throw new Error(`lever ${r.status}`);
+  const fields = leverParse(await r.text());
+  let jd = '', title = '', location = '';
+  try { const d = await (await fetch(`https://api.lever.co/v0/postings/${ref.board}/${ref.id}`)).json(); title = d.text || ''; location = d.categories?.location || ''; jd = [d.descriptionPlain, ...(d.lists || []).map(l => l.text + ': ' + strip(l.content)), d.additionalPlain].filter(Boolean).join('\n'); } catch {}
+  return { fields, jd, title, location };
 }
 
 async function greenhouseForm(ref) {
@@ -144,8 +183,8 @@ const AI_POLICY = /AI (policy|usage|use)|use of AI|AI.{0,20}attestation|without 
 
 export async function prepareOne(p) {
   const ref = jobRef(p.url, p.company);
-  if (!ref) return { ok: false, reason: 'unsupported ATS (not Greenhouse/Ashby)' };
-  const form = ref.ats === 'ashby' ? await ashbyForm(ref) : await greenhouseForm(ref);
+  if (!ref) return { ok: false, reason: 'unsupported ATS (not Greenhouse/Ashby/Lever)' };
+  const form = ref.ats === 'ashby' ? await ashbyForm(ref) : ref.ats === 'lever' ? await leverForm(ref) : await greenhouseForm(ref);
   if (!form.fields.length) return { ok: false, reason: 'could not read application form' };
   const out = draft(p.company, p.role, form.jd, form.fields);
   const skip = [].concat(out.skip || []).filter(Boolean);
