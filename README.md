@@ -8,6 +8,46 @@ A companion to [career-ops](https://github.com/career-ops-hq/career-ops) that do
 
 No headless browsers, no automated submission, no CAPTCHA handling. Automated browsers get flagged by ATS anti-abuse systems; your own Chrome with you clicking Submit does not look like a bot because it isn't one.
 
+## How it works
+
+```mermaid
+flowchart TD
+    A["1. Scan<br/>career-ops scan.mjs<br/>Greenhouse / Ashby / Lever boards"] --> B
+    B["2. Filter<br/>location, title, posting age,<br/>blacklist, already applied"] --> C
+    C["3. Read the form<br/>public ATS API: every question,<br/>type, options, required?"] --> D
+    D["4. Draft answers<br/>claude -p with facts.md + cv.md + JD"] --> E
+    E["5. Guardrails<br/>hard invariants + self-check"] -->|all required answered| Q[("queue.json")]
+    E -->|can't answer truthfully /<br/>unsupported ATS| M["Manual list<br/>+ open-questions.md"]
+    M -->|you answer once| D
+    Q --> F["6. Open in your Chrome<br/>morning.mjs / open-next.mjs"]
+    F --> G["7. Extension fills + verifies<br/>green / red panel"]
+    G --> H(["8. YOU click Submit"])
+    H --> I["9. Tracker: Applied<br/>data/applications.md"]
+    Q -.-> J["Daily email<br/>queued, manual, open questions"]
+    M -.-> J
+```
+
+### What you can customize at each step
+
+| Step | Knob | Where |
+|---|---|---|
+| 1. Scan | which companies / boards | career-ops `portals.yml` → `tracked_companies` (add with `discover-ats.mjs`) |
+| 2. Filter | title keywords (include / exclude) | `portals.yml` → `title_filter.positive` / `negative` |
+| | location | `portals.yml` → `location_filter`; `BAY` regex in `prepare.mjs` |
+| | posting age | `portals.yml` → `max_posting_age_days` |
+| | companies never to apply to | career-ops `data/blacklist.md` |
+| 4. Draft | **the facts the LLM may use** | `facts.md` (+ career-ops `cv.md`) |
+| | **how open questions are written** (length, tone, which story to pick, "no buzzwords") | `RULES` block in `draft()` in `prepare.mjs` |
+| | model | `--model sonnet` in `draft()` |
+| | answers to recurring unknown questions | `open-questions.md` (answer once, used forever) |
+| 5. Guardrails | forced answers (sponsorship, work auth, EEO, …) | `INVARIANTS` in `prepare.mjs` |
+| | forms that forbid AI-written answers | `AI_POLICY` regex in `prepare.mjs` |
+| 6. Open | how many per batch / per day | `node open-next.mjs N`; `DAILY_MAX` in `.env` |
+| | when the morning run fires | `launchd/morning.plist.tmpl` (default: login + 08:00) |
+| 7. Fill | new widget types | `fillBox()` in `extension/content.js`; failures are dumped to `logs/dom/`; test with `node test/fill.test.mjs` |
+| | city for location type-aheads | `HOME_CITY` in `.env` |
+| Email | recipient / sender | `SUMMARY_TO`, `GMAIL_USER`, `GMAIL_APP_PASSWORD` in `.env` |
+
 ## Guardrails
 
 - **Facts-only drafting.** The model may use only `facts.md` and `cv.md`. A required question it can't answer truthfully sends the posting to the manual list instead of being guessed.

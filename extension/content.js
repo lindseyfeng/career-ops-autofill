@@ -89,6 +89,13 @@
     await sleep(1500);
   }
 
+  function filledOK(f) {
+    if (f.kind === 'radio' || f.kind === 'checkbox') return f.els.some(e => e.checked);
+    if (f.kind === 'file') return (f.el.files?.length || 0) > 0 || /resume\.pdf/i.test(txt(f.el.closest('div,fieldset')?.parentElement));
+    if (f.kind === 'combobox') { let a = f.el; for (let i = 0; i < 4 && a; i++) a = a.parentElement; const s = txt(a); return !!s && !/^select\.{0,3}$/i.test(s); }
+    return !!String(f.el.value || '').trim();
+  }
+
   // ---------- locate a question's container by its label text (widget-agnostic) ----------
   const CONTROL = 'input:not([type=hidden]), textarea, select, button:not([type=submit])';
   const visible = e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
@@ -109,12 +116,16 @@
     }
     return null;
   }
+  // Choice buttons (Ashby Yes/No etc.). A <button> without a type attribute reports type "submit",
+  // so filter by text instead: anything that looks like a form action is not a choice.
+  const choiceButtons = box => [...box.querySelectorAll('button, [role=radio], [role=button], [role=option], [role=switch]')]
+    .filter(b => txt(b) && visible(b) && !b.closest('#career-ops-panel') && !/submit|apply|upload|attach|remove|delete|add another|browse|choose file/i.test(txt(b)) && txt(b).length < 80);
   const isActive = b => b.getAttribute('aria-pressed') === 'true' || b.getAttribute('aria-checked') === 'true' || /active|selected|checked|pressed/i.test(b.className);
   const optionText = e => labelOf(e) || txt(e.parentElement);
 
   function boxFilled(box, kind) {
     if (kind === 'file') return [...box.querySelectorAll('input[type=file]')].some(i => i.files?.length) || /resume\.pdf/i.test(txt(box));
-    const btns = [...box.querySelectorAll('button')].filter(b => b.type !== 'submit' && txt(b) && visible(b));
+    const btns = choiceButtons(box);
     if (btns.length && btns.length <= 6 && !box.querySelector('input[type=radio]')) return btns.some(isActive);
     const ch = [...box.querySelectorAll('input[type=radio], input[type=checkbox]')];
     if (ch.length) return ch.some(e => e.checked);
@@ -142,7 +153,7 @@
     const v = a.value, vals = [].concat(v).map(String);
     const isLocation = /location|city|where are you (based|located)/i.test(a.question);
     if (a.kind === 'file') { const f = box.querySelector('input[type=file]') || document.querySelector('input[type=file]'); if (!f) throw new Error('no file input'); await attachResume(f); return 'resume.pdf'; }
-    const btns = [...box.querySelectorAll('button')].filter(b => b.type !== 'submit' && txt(b) && visible(b));
+    const btns = choiceButtons(box);
     if (btns.length && vals.every(x => btns.some(b => key(txt(b)) === key(x)))) {
       for (const x of vals) { const b = btns.find(b => key(txt(b)) === key(x)); if (!isActive(b)) b.click(); await sleep(250); }
       return vals.join('; ');
@@ -225,6 +236,13 @@
     for (const m of missing) if (m.el) (m.el.closest?.('div') || m.el).style.outline = '3px solid #e33';
   }
 
+  // ---------- learn from the user's own fills: snapshot the form when they click Submit ----------
+  document.addEventListener('click', e => {
+    const b = e.target.closest?.('button, input[type=submit]');
+    if (!b || !/submit/i.test(txt(b) || b.value || '') || !panel.isConnected) return;
+    ask({ type: 'debug', url: location.href, company: panel.dataset.company || 'unknown', why: 'FULL FORM at user submit', html: (document.querySelector('form') || document.body).outerHTML.slice(0, 400000) });
+  }, true);
+
   // ---------- confirmation watcher ----------
   let reported = false;
   setInterval(async () => {
@@ -239,7 +257,7 @@
   (async () => {
     const item = await ask({ type: 'item', url: location.href });
     if (!item || item.error) return; // not a queued posting: stay invisible
-    panel.id = 'career-ops-panel'; document.body.appendChild(panel);
+    panel.id = 'career-ops-panel'; panel.dataset.company = item.company; document.body.appendChild(panel);
     try { await run(item); } catch (e) { say('⚠️ Autofill error: ' + e.message + '<br>Fill the form manually.'); }
   })();
 })();

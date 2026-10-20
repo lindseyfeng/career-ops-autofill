@@ -1,0 +1,14 @@
+<!doctype html><html><body><form>
+<div class="ashby-application-form-field-entry"><label class="ashby-application-form-question-title _required_" for="n">Full Legal Name</label><input id="n" required type="text"></div>
+<div class="ashby-application-form-field-entry"><label class="ashby-application-form-question-title" for="r">Resume</label><input id="r" type="file" onchange="setTimeout(()=>{n.value='';t.value='';document.querySelectorAll('._yesno_ button').forEach(b=>b.classList.remove('_active_'))},800)"></div>
+<div class="ashby-application-form-field-entry"><label class="ashby-application-form-question-title _required_">Are you legally authorized to work in the country where this role is located?</label>
+ <div class="_yesno_"><button class="_option_" onclick="event.preventDefault();this.parentNode.querySelectorAll('button').forEach(b=>b.classList.remove('_active_'));this.classList.add('_active_')">Yes</button><button class="_option_" onclick="event.preventDefault();this.parentNode.querySelectorAll('button').forEach(b=>b.classList.remove('_active_'));this.classList.add('_active_')">No</button></div>
+ <input type="checkbox" style="display:none"></div>
+<div class="ashby-application-form-field-entry"><label class="ashby-application-form-question-title _required_">Which best describes you?</label>
+ <fieldset><span><input type="radio" name="q" id="q1"><label for="q1">Option A</label></span><span><input type="radio" name="q" id="q2"><label for="q2">Option B</label></span></fieldset></div>
+<div class="ashby-application-form-field-entry"><label class="ashby-application-form-question-title _required_" for="loc">Current Location</label>
+ <input id="loc" placeholder="Start typing..." oninput="const l=document.getElementById('lb');l.innerHTML='';if(this.value.length>2){['Atlanta, Georgia, United States','Atlantic City, NJ'].forEach(t=>{const d=document.createElement('div');d.setAttribute('role','option');d.textContent=t;d.onclick=()=>{document.getElementById('loc').value=t;l.innerHTML=''};l.appendChild(d)})}"><div id="lb" role="listbox"></div></div>
+<div class="ashby-application-form-field-entry"><label class="ashby-application-form-question-title _required_" for="t">What is the most impressive thing you’ve personally built?</label><textarea id="t" required></textarea></div>
+<div class="field"><label id="spl" for="sp">Will you now or in the future require sponsorship?*</label>
+ <div class="select__control"><div class="select__single-value"></div><input id="sp" role="combobox" aria-required="true" aria-controls="splb" onfocus="splb.innerHTML='';['Yes','No'].forEach(o=>{const d=document.createElement('div');d.setAttribute('role','option');d.textContent=o;d.onclick=()=>{sp.closest('.select__control').querySelector('.select__single-value').textContent=o;splb.innerHTML='';sp.value=''};splb.appendChild(d)})"></div><div id="splb" role="listbox"></div></div>
+<button>Submit Application</button></form></body></html>
